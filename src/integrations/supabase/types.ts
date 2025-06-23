@@ -9,7 +9,80 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      lines: {
+        Row: {
+          activation_date: string | null
+          created_at: string | null
+          customer_name: string
+          id: string
+          mdn: string
+          plan: string | null
+          status: Database["public"]["Enums"]["line_status"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          activation_date?: string | null
+          created_at?: string | null
+          customer_name: string
+          id?: string
+          mdn: string
+          plan?: string | null
+          status?: Database["public"]["Enums"]["line_status"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          activation_date?: string | null
+          created_at?: string | null
+          customer_name?: string
+          id?: string
+          mdn?: string
+          plan?: string | null
+          status?: Database["public"]["Enums"]["line_status"] | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          activity_type: Database["public"]["Enums"]["transaction_type"]
+          amount: number
+          created_at: string | null
+          description: string | null
+          id: string
+          line_id: string
+          product_category: string | null
+          transaction_date: string
+        }
+        Insert: {
+          activity_type: Database["public"]["Enums"]["transaction_type"]
+          amount: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          line_id: string
+          product_category?: string | null
+          transaction_date: string
+        }
+        Update: {
+          activity_type?: Database["public"]["Enums"]["transaction_type"]
+          amount?: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          line_id?: string
+          product_category?: string | null
+          transaction_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +91,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      line_status: "ACTIVE" | "INACTIVE" | "SUSPENDED"
+      transaction_type: "ACT" | "RESIDUAL" | "DEACT"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +207,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      line_status: ["ACTIVE", "INACTIVE", "SUSPENDED"],
+      transaction_type: ["ACT", "RESIDUAL", "DEACT"],
+    },
   },
 } as const
