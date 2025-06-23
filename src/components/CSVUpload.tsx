@@ -8,12 +8,12 @@ import { Upload, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
 interface CSVRow {
-  ServiceNumber: string;
-  CustomerName: string;
-  PartnerComp: string;
-  ActivityType: 'ACT' | 'RESIDUAL' | 'DEACT';
-  ProdCatDescription: string;
-  TRN_DATE: string;
+  ACCOUNT_NUM: string;
+  CUSTOMER: string;
+  PROVIDER: string;
+  CYCLE: string;
+  COMP_PAID: string;
+  NOTE: string;
 }
 
 const CSVUpload = () => {
@@ -37,6 +37,37 @@ const CSVUpload = () => {
     });
   };
 
+  const extractPhoneNumber = (accountNum: string): string => {
+    // Extract first 10 digits from ACCOUNT_NUM
+    const digits = accountNum.replace(/\D/g, '');
+    return digits.substring(0, 10);
+  };
+
+  const determineActivityType = (note: string, provider: string): 'ACT' | 'RESIDUAL' | 'DEACT' => {
+    const noteLower = note.toLowerCase();
+    
+    // Chargebacks/Clawbacks
+    if (noteLower.includes('chargeback') || noteLower.includes('clawback')) {
+      return 'DEACT';
+    }
+    
+    // Upfront payments
+    if ((provider === 'AT&T' && noteLower.includes('upfront')) ||
+        (provider === 'Verizon' && noteLower.includes('activation'))) {
+      return 'ACT';
+    }
+    
+    // Residuals/SPIFs
+    if (noteLower.includes('spif') || 
+        noteLower.includes('residual') || 
+        noteLower.includes('account maintenance fee')) {
+      return 'RESIDUAL';
+    }
+    
+    // Default to ACT if unclear
+    return 'ACT';
+  };
+
   const cleanCurrency = (value: string): number => {
     return parseFloat(value.replace(/[$,]/g, '')) || 0;
   };
@@ -46,12 +77,19 @@ const CSVUpload = () => {
 
     for (const row of data) {
       try {
+        const phoneNumber = extractPhoneNumber(row.ACCOUNT_NUM);
+        
+        if (!phoneNumber || phoneNumber.length !== 10) {
+          console.log('Skipping row with invalid phone number:', row.ACCOUNT_NUM);
+          continue;
+        }
+
         // Check if line exists
         let { data: existingLine } = await supabase
           .from('lines')
           .select('id')
-          .eq('mdn', row.ServiceNumber)
-          .single();
+          .eq('mdn', phoneNumber)
+          .maybeSingle();
 
         let lineId: string;
 
@@ -60,11 +98,11 @@ const CSVUpload = () => {
           const { data: newLine, error: lineError } = await supabase
             .from('lines')
             .insert({
-              mdn: row.ServiceNumber,
-              customer_name: row.CustomerName || 'Unknown',
-              plan: row.ProdCatDescription,
+              mdn: phoneNumber,
+              customer_name: row.CUSTOMER || 'Unknown',
+              plan: row.PROVIDER,
               status: 'ACTIVE',
-              activation_date: new Date(row.TRN_DATE).toISOString().split('T')[0],
+              activation_date: new Date(row.CYCLE).toISOString().split('T')[0],
             })
             .select('id')
             .single();
@@ -81,16 +119,20 @@ const CSVUpload = () => {
           processedCount.updated++;
         }
 
+        // Determine activity type based on NOTE and PROVIDER
+        const activityType = determineActivityType(row.NOTE, row.PROVIDER);
+        const amount = cleanCurrency(row.COMP_PAID);
+
         // Add transaction
         const { error: transactionError } = await supabase
           .from('transactions')
           .insert({
             line_id: lineId,
-            transaction_date: new Date(row.TRN_DATE).toISOString().split('T')[0],
-            activity_type: row.ActivityType,
-            product_category: row.ProdCatDescription,
-            amount: cleanCurrency(row.PartnerComp),
-            description: `${row.ActivityType} - ${row.ProdCatDescription}`,
+            transaction_date: new Date(row.CYCLE).toISOString().split('T')[0],
+            activity_type: activityType,
+            product_category: row.PROVIDER,
+            amount: amount,
+            description: `${activityType} - ${row.NOTE}`,
           });
 
         if (transactionError) {
@@ -131,6 +173,8 @@ const CSVUpload = () => {
       if (data.length === 0) {
         throw new Error('No data found in CSV file');
       }
+
+      console.log('Parsed CSV data:', data);
 
       const result = await processCSVData(data);
 
@@ -217,7 +261,7 @@ const CSVUpload = () => {
               {isProcessing ? 'Processing...' : getStatusMessage()}
             </p>
             <p className="text-sm text-gray-500 mt-1">
-              Expected columns: ServiceNumber, CustomerName, PartnerComp, ActivityType, ProdCatDescription, TRN_DATE
+              Expected columns: ACCOUNT_NUM, CUSTOMER, PROVIDER, CYCLE, COMP_PAID, NOTE
             </p>
           </div>
           
