@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,11 +28,15 @@ const AllLines = () => {
           plan,
           status,
           activation_date,
+          created_at,
+          updated_at,
           transactions(
             id,
             activity_type,
             amount,
-            transaction_date
+            transaction_date,
+            description,
+            product_category
           )
         `)
         .order('created_at', { ascending: false });
@@ -94,27 +97,79 @@ const AllLines = () => {
   const exportToCSV = () => {
     if (!filteredLines?.length) return;
 
-    const headers = ['MDN', 'Customer Name', 'Provider', 'Status', 'Activation Date', 'Has Upfront', 'Has Monthly', 'Total Earnings', 'Chargebacks'];
+    // Get all unique months from all transactions
+    const allMonths = new Set<string>();
+    
+    filteredLines.forEach(line => {
+      line.transactions.forEach(transaction => {
+        if (transaction.transaction_date) {
+          const monthYear = format(new Date(transaction.transaction_date), 'yyyy-MM');
+          allMonths.add(monthYear);
+        }
+      });
+    });
+
+    // Sort months chronologically
+    const sortedMonths = Array.from(allMonths).sort();
+
+    // Create headers
+    const baseHeaders = [
+      'MDN',
+      'Customer Name', 
+      'Provider',
+      'Status',
+      'Activation Date',
+      'Created At',
+      'Updated At',
+      'Has Upfront',
+      'Has Monthly',
+      'Total Earnings',
+      'Chargebacks'
+    ];
+
+    const monthHeaders = sortedMonths.map(month => `${month} Total`);
+    const headers = [...baseHeaders, ...monthHeaders];
+
+    // Generate CSV content
     const csvContent = [
       headers.join(','),
-      ...filteredLines.map(line => [
-        line.mdn,
-        `"${line.customer_name}"`,
-        `"${line.plan || ''}"`,
-        line.status,
-        line.activation_date ? format(new Date(line.activation_date), 'yyyy-MM-dd') : '',
-        line.hasUpfront ? 'Yes' : 'No',
-        line.hasMonthlyCommission ? 'Yes' : 'No',
-        line.totalEarnings.toFixed(2),
-        Math.abs(line.chargebacks).toFixed(2)
-      ].join(','))
+      ...filteredLines.map(line => {
+        // Calculate monthly totals for this line
+        const monthlyTotals = sortedMonths.map(month => {
+          const monthTotal = line.transactions
+            .filter(t => {
+              if (!t.transaction_date) return false;
+              const transactionMonth = format(new Date(t.transaction_date), 'yyyy-MM');
+              return transactionMonth === month;
+            })
+            .reduce((sum, t) => sum + Number(t.amount), 0);
+          
+          return monthTotal.toFixed(2);
+        });
+
+        const baseData = [
+          line.mdn,
+          `"${line.customer_name}"`,
+          `"${line.plan || ''}"`,
+          line.status,
+          line.activation_date ? format(new Date(line.activation_date), 'yyyy-MM-dd') : '',
+          line.created_at ? format(new Date(line.created_at), 'yyyy-MM-dd HH:mm:ss') : '',
+          line.updated_at ? format(new Date(line.updated_at), 'yyyy-MM-dd HH:mm:ss') : '',
+          line.hasUpfront ? 'Yes' : 'No',
+          line.hasMonthlyCommission ? 'Yes' : 'No',
+          line.totalEarnings.toFixed(2),
+          Math.abs(line.chargebacks).toFixed(2)
+        ];
+
+        return [...baseData, ...monthlyTotals].join(',');
+      })
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `lines-payment-status-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+    a.download = `lines-monthly-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
