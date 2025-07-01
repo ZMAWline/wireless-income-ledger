@@ -19,6 +19,7 @@ export type Database = {
           plan: string | null
           status: Database["public"]["Enums"]["line_status"] | null
           updated_at: string | null
+          user_id: string | null
         }
         Insert: {
           activation_date?: string | null
@@ -29,6 +30,7 @@ export type Database = {
           plan?: string | null
           status?: Database["public"]["Enums"]["line_status"] | null
           updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
           activation_date?: string | null
@@ -38,6 +40,31 @@ export type Database = {
           mdn?: string
           plan?: string | null
           status?: Database["public"]["Enums"]["line_status"] | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string
           updated_at?: string | null
         }
         Relationships: []
@@ -52,6 +79,7 @@ export type Database = {
           line_id: string
           product_category: string | null
           transaction_date: string
+          user_id: string | null
         }
         Insert: {
           activity_type: Database["public"]["Enums"]["transaction_type"]
@@ -62,6 +90,7 @@ export type Database = {
           line_id: string
           product_category?: string | null
           transaction_date: string
+          user_id?: string | null
         }
         Update: {
           activity_type?: Database["public"]["Enums"]["transaction_type"]
@@ -72,6 +101,7 @@ export type Database = {
           line_id?: string
           product_category?: string | null
           transaction_date?: string
+          user_id?: string | null
         }
         Relationships: [
           {

@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +20,9 @@ const AllLines = () => {
   const { data: lines, isLoading } = useQuery({
     queryKey: ['lines', search],
     queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
       let query = supabase
         .from('lines')
         .select(`
@@ -39,6 +43,7 @@ const AllLines = () => {
             product_category
           )
         `)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (search) {

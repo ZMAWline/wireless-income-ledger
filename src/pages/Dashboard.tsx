@@ -11,15 +11,20 @@ const Dashboard = () => {
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: async () => {
-      // Get transaction stats
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Get transaction stats for the authenticated user
       const { data: transactions } = await supabase
         .from('transactions')
-        .select('activity_type, amount');
+        .select('activity_type, amount')
+        .eq('user_id', user.id);
 
-      // Get line count
+      // Get line count for the authenticated user
       const { data: lines } = await supabase
         .from('lines')
-        .select('id, status');
+        .select('id, status')
+        .eq('user_id', user.id);
 
       const totalUpfront = transactions?.filter(t => t.activity_type === 'ACT')
         .reduce((sum, t) => sum + Number(t.amount), 0) || 0;
