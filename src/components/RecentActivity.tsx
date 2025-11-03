@@ -11,13 +11,7 @@ const RecentActivity = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('transactions')
-        .select(`
-          id,
-          amount,
-          activity_type,
-          transaction_date,
-          lines!inner(mdn, customer_name)
-        `)
+        .select('id, amount, activity_type, created_at, mdn, customer')
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -82,12 +76,12 @@ const RecentActivity = () => {
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <p className="font-medium text-sm">
-                {transaction.lines.mdn}
+                {transaction.mdn}
               </p>
               {getActivityBadge(transaction.activity_type)}
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              {transaction.lines.customer_name} • {format(new Date(transaction.transaction_date), 'MMM dd, yyyy')}
+              {(transaction.customer || 'Unknown')} • {format(new Date(transaction.created_at), 'MMM dd, yyyy')}
             </p>
           </div>
           <div className="text-right">

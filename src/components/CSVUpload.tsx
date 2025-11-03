@@ -6,6 +6,7 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Upload, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import Papa from 'papaparse';
 
 interface CSVRow {
   ACCOUNT_NUM: string;
@@ -22,19 +23,12 @@ const CSVUpload = () => {
   const queryClient = useQueryClient();
 
   const parseCSV = (csvText: string): CSVRow[] => {
-    const lines = csvText.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-    
-    return lines.slice(1).map(line => {
-      const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
-      const row: any = {};
-      
-      headers.forEach((header, index) => {
-        row[header] = values[index] || '';
-      });
-      
-      return row as CSVRow;
+    const result = Papa.parse<CSVRow>(csvText, {
+      header: true,
+      skipEmptyLines: true,
     });
+    // Filter out completely empty rows and ensure required keys exist
+    return (result.data || []).filter((r) => r && Object.keys(r).length > 0) as CSVRow[];
   };
 
   const extractPhoneNumber = (accountNum: string): string => {
@@ -75,16 +69,28 @@ const CSVUpload = () => {
   const processCSVData = async (data: CSVRow[]) => {
     const processedCount = { created: 0, updated: 0, transactions: 0 };
 
+    const { data: authData } = await supabase.auth.getUser();
+    const user = authData?.user;
+    if (!user) {
+      throw new Error('You must be signed in to upload data.');
+    }
+
     for (const row of data) {
       try {
-        const phoneNumber = extractPhoneNumber(row.ACCOUNT_NUM);
-        
+        const phoneNumber = extractPhoneNumber(row.ACCOUNT_NUM || '');
         if (!phoneNumber || phoneNumber.length !== 10) {
           console.log('Skipping row with invalid phone number:', row.ACCOUNT_NUM);
           continue;
         }
 
-        // Check if line exists
+        // Normalize fields
+        const customer = (row.CUSTOMER || '').replace(/,+$/, '').trim();
+        const provider = (row.PROVIDER || '').trim();
+        const cycle = (row.CYCLE || '').trim();
+        const note = (row.NOTE || '').trim();
+        const amount = cleanCurrency(row.COMP_PAID || '0');
+
+        // Check if line exists for this user
         let { data: existingLine } = await supabase
           .from('lines')
           .select('id')
@@ -94,20 +100,20 @@ const CSVUpload = () => {
         let lineId: string;
 
         if (!existingLine) {
-          // Create new line
+          // Create new line with correct schema and RLS user_id
           const { data: newLine, error: lineError } = await supabase
             .from('lines')
             .insert({
+              user_id: user.id,
               mdn: phoneNumber,
-              customer_name: row.CUSTOMER || 'Unknown',
-              plan: row.PROVIDER,
+              customer: customer || 'Unknown',
+              provider: provider || null,
               status: 'ACTIVE',
-              activation_date: new Date(row.CYCLE).toISOString().split('T')[0],
             })
             .select('id')
             .single();
 
-          if (lineError) {
+          if (lineError || !newLine) {
             console.error('Error creating line:', lineError);
             continue;
           }
@@ -115,24 +121,26 @@ const CSVUpload = () => {
           lineId = newLine.id;
           processedCount.created++;
         } else {
-          lineId = existingLine.id;
+          lineId = existingLine.id as string;
           processedCount.updated++;
         }
 
         // Determine activity type based on NOTE and PROVIDER
-        const activityType = determineActivityType(row.NOTE, row.PROVIDER);
-        const amount = cleanCurrency(row.COMP_PAID);
+        const activityType = determineActivityType(note, provider);
 
-        // Add transaction
+        // Add transaction with correct schema and RLS user_id
         const { error: transactionError } = await supabase
           .from('transactions')
           .insert({
+            user_id: user.id,
             line_id: lineId,
-            transaction_date: new Date(row.CYCLE).toISOString().split('T')[0],
+            mdn: phoneNumber,
+            provider: provider || null,
+            customer: customer || null,
+            cycle: cycle || null,
+            note: note || null,
             activity_type: activityType,
-            product_category: row.PROVIDER,
             amount: amount,
-            description: `${activityType} - ${row.NOTE}`,
           });
 
         if (transactionError) {

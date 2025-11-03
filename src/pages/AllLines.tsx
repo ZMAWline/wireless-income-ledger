@@ -20,39 +20,30 @@ const AllLines = () => {
   const { data: lines, isLoading } = useQuery({
     queryKey: ['lines', search],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      let query = supabase
+      const { data: linesData, error: linesError } = await supabase
         .from('lines')
-        .select(`
-          id,
-          mdn,
-          customer_name,
-          plan,
-          status,
-          activation_date,
-          created_at,
-          updated_at,
-          transactions(
-            id,
-            activity_type,
-            amount,
-            transaction_date,
-            description,
-            product_category
-          )
-        `)
-        .eq('user_id', user.id)
+        .select('id, mdn, customer, provider, status, created_at, updated_at')
         .order('created_at', { ascending: false });
 
-      if (search) {
-        query = query.ilike('mdn', `%${search}%`);
-      }
+      if (linesError) throw linesError;
 
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
+      const { data: txData, error: txError } = await supabase
+        .from('transactions')
+        .select('id, line_id, mdn, activity_type, amount, created_at')
+        .order('created_at', { ascending: false });
+
+      if (txError) throw txError;
+
+      const filteredLines = (linesData || []).filter((l) =>
+        search ? l.mdn.toLowerCase().includes(search.toLowerCase()) : true
+      );
+
+      const withTransactions = filteredLines.map((line) => ({
+        ...line,
+        transactions: (txData || []).filter((t) => t.line_id === line.id),
+      }));
+
+      return withTransactions as any[];
     },
   });
 
@@ -107,8 +98,8 @@ const AllLines = () => {
     
     filteredLines.forEach(line => {
       line.transactions.forEach(transaction => {
-        if (transaction.transaction_date) {
-          const monthYear = format(new Date(transaction.transaction_date), 'yyyy-MM');
+        if (transaction.created_at) {
+          const monthYear = format(new Date(transaction.created_at), 'yyyy-MM');
           allMonths.add(monthYear);
         }
       });
@@ -143,8 +134,8 @@ const AllLines = () => {
         const monthlyTotals = sortedMonths.map(month => {
           const monthTotal = line.transactions
             .filter(t => {
-              if (!t.transaction_date) return false;
-              const transactionMonth = format(new Date(t.transaction_date), 'yyyy-MM');
+              if (!t.created_at) return false;
+              const transactionMonth = format(new Date(t.created_at), 'yyyy-MM');
               return transactionMonth === month;
             })
             .reduce((sum, t) => sum + Number(t.amount), 0);
@@ -154,10 +145,10 @@ const AllLines = () => {
 
         const baseData = [
           line.mdn,
-          `"${line.customer_name}"`,
-          `"${line.plan || ''}"`,
+          `"${line.customer || ''}"`,
+          `"${line.provider || ''}"`,
           line.status,
-          line.activation_date ? format(new Date(line.activation_date), 'yyyy-MM-dd') : '',
+          line.created_at ? format(new Date(line.created_at), 'yyyy-MM-dd') : '',
           line.created_at ? format(new Date(line.created_at), 'yyyy-MM-dd HH:mm:ss') : '',
           line.updated_at ? format(new Date(line.updated_at), 'yyyy-MM-dd HH:mm:ss') : '',
           line.hasUpfront ? 'Yes' : 'No',
@@ -306,8 +297,8 @@ const AllLines = () => {
                     {filteredLines.map((line) => (
                       <TableRow key={line.id}>
                         <TableCell className="font-mono">{line.mdn}</TableCell>
-                        <TableCell>{line.customer_name}</TableCell>
-                        <TableCell>{line.plan || 'N/A'}</TableCell>
+                        <TableCell>{line.customer || 'N/A'}</TableCell>
+                        <TableCell>{line.provider || 'N/A'}</TableCell>
                         <TableCell>{getStatusBadge(line.status)}</TableCell>
                         <TableCell>
                           <PaymentStatusIndicator 

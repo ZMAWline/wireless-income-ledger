@@ -32,7 +32,7 @@ const LineDetail = () => {
         .from('transactions')
         .select('*')
         .eq('line_id', id)
-        .order('transaction_date', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       return data;
@@ -117,7 +117,7 @@ const LineDetail = () => {
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-gray-500" />
               <div>
-                <p className="text-sm font-medium text-gray-900">{line.customer_name}</p>
+                <p className="text-sm font-medium text-gray-900">{line.customer || 'Unknown'}</p>
                 <p className="text-xs text-gray-500">Customer</p>
               </div>
             </div>
@@ -125,8 +125,8 @@ const LineDetail = () => {
             <div className="flex items-center gap-2">
               <Package className="h-4 w-4 text-gray-500" />
               <div>
-                <p className="text-sm font-medium text-gray-900">{line.plan || 'Unknown'}</p>
-                <p className="text-xs text-gray-500">Plan</p>
+                <p className="text-sm font-medium text-gray-900">{line.provider || 'Unknown'}</p>
+                <p className="text-xs text-gray-500">Provider</p>
               </div>
             </div>
             
@@ -134,9 +134,9 @@ const LineDetail = () => {
               <Calendar className="h-4 w-4 text-gray-500" />
               <div>
                 <p className="text-sm font-medium text-gray-900">
-                  {line.activation_date ? format(new Date(line.activation_date), 'MMM dd, yyyy') : 'Unknown'}
+                  {line.created_at ? format(new Date(line.created_at), 'MMM dd, yyyy') : 'Unknown'}
                 </p>
-                <p className="text-xs text-gray-500">Activation Date</p>
+                <p className="text-xs text-gray-500">Created At</p>
               </div>
             </div>
             
@@ -176,9 +176,9 @@ const LineDetail = () => {
                         {transaction.activity_type}
                       </Badge>
                       <div>
-                        <p className="font-medium">{transaction.description}</p>
+                        <p className="font-medium">{transaction.note || '—'}</p>
                         <p className="text-sm text-gray-500">
-                          {format(new Date(transaction.transaction_date), 'MMM dd, yyyy')}
+                          {format(new Date(transaction.created_at), 'MMM dd, yyyy')}
                         </p>
                       </div>
                     </div>
@@ -186,8 +186,8 @@ const LineDetail = () => {
                       <p className={`font-bold ${Number(transaction.amount) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         ${Number(transaction.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </p>
-                      {transaction.product_category && (
-                        <p className="text-xs text-gray-500">{transaction.product_category}</p>
+                      {transaction.provider && (
+                        <p className="text-xs text-gray-500">{transaction.provider}</p>
                       )}
                     </div>
                   </div>

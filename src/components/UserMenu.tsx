@@ -19,16 +19,7 @@ const UserMenu = () => {
     queryKey: ['profile'],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (error) throw error;
-      return data;
+      return user;
     },
   });
 
@@ -49,13 +40,13 @@ const UserMenu = () => {
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm">
           <User className="h-4 w-4 mr-2" />
-          {profile?.full_name || profile?.email || 'User'}
+          {(profile?.user_metadata as any)?.full_name || profile?.email || 'User'}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem disabled>
           <div className="flex flex-col">
-            <span className="font-medium">{profile?.full_name}</span>
+            <span className="font-medium">{(profile?.user_metadata as any)?.full_name || 'User'}</span>
             <span className="text-sm text-gray-500">{profile?.email}</span>
           </div>
         </DropdownMenuItem>
