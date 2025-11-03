@@ -14,7 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      lines: {
+        Row: {
+          created_at: string
+          customer: string | null
+          id: string
+          mdn: string
+          product_id: string | null
+          provider: string | null
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer?: string | null
+          id?: string
+          mdn: string
+          product_id?: string | null
+          provider?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          customer?: string | null
+          id?: string
+          mdn?: string
+          product_id?: string | null
+          provider?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          activity_type: string
+          amount: number
+          created_at: string
+          customer: string | null
+          cycle: string | null
+          id: string
+          line_id: string | null
+          mdn: string
+          note: string | null
+          provider: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          amount: number
+          created_at?: string
+          customer?: string | null
+          cycle?: string | null
+          id?: string
+          line_id?: string | null
+          mdn: string
+          note?: string | null
+          provider?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          amount?: number
+          created_at?: string
+          customer?: string | null
+          cycle?: string | null
+          id?: string
+          line_id?: string | null
+          mdn?: string
+          note?: string | null
+          provider?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "lines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
