@@ -40,7 +40,9 @@ const AllLines = () => {
 
       const withTransactions = filteredLines.map((line) => ({
         ...line,
-        transactions: (txData || []).filter((t) => t.line_id === line.id),
+        transactions: (txData || []).filter((t) => 
+          t.line_id === line.id || (t.mdn === line.mdn && !t.line_id)
+        ),
       }));
 
       return withTransactions as any[];
