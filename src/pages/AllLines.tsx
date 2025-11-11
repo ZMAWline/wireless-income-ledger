@@ -29,7 +29,7 @@ const AllLines = () => {
 
       const { data: txData, error: txError } = await supabase
         .from('transactions')
-        .select('id, line_id, mdn, activity_type, amount, created_at')
+        .select('id, line_id, mdn, activity_type, amount, created_at, note, provider, cycle')
         .order('created_at', { ascending: false });
 
       if (txError) throw txError;
@@ -49,16 +49,26 @@ const AllLines = () => {
     },
   });
 
+  // Normalize transaction types for robust detection
+  const normalizeType = (t: { activity_type?: string; note?: string }) => {
+    const raw = (t.activity_type || '').trim().toUpperCase();
+    const note = (t.note || '').toLowerCase();
+    if (raw === 'ACT' || raw.includes('ACTIVATION') || note.includes('activation') || note.includes('upfront')) return 'ACT';
+    if (raw === 'DEACT' || raw.includes('CHARGEBACK') || raw.includes('CLAWBACK') || note.includes('chargeback') || note.includes('clawback')) return 'DEACT';
+    if (raw === 'RESIDUAL' || raw.includes('RESID') || raw.includes('SPIF') || raw.includes('SPIFF') || note.includes('spif') || note.includes('residual')) return 'RESIDUAL';
+    return 'RESIDUAL';
+  };
+
   // Process lines to determine payment status
   const processedLines = lines?.map(line => {
-    const hasUpfront = line.transactions.some(t => t.activity_type === 'ACT');
-    const hasMonthlyCommission = line.transactions.some(t => t.activity_type === 'RESIDUAL');
+    const hasUpfront = line.transactions.some((t: any) => normalizeType(t) === 'ACT');
+    const hasMonthlyCommission = line.transactions.some((t: any) => normalizeType(t) === 'RESIDUAL');
     const totalEarnings = line.transactions
-      .filter(t => t.activity_type !== 'DEACT')
-      .reduce((sum, t) => sum + Number(t.amount), 0);
+      .filter((t: any) => normalizeType(t) !== 'DEACT')
+      .reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0);
     const chargebacks = line.transactions
-      .filter(t => t.activity_type === 'DEACT')
-      .reduce((sum, t) => sum + Number(t.amount), 0);
+      .filter((t: any) => normalizeType(t) === 'DEACT')
+      .reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0);
 
     return {
       ...line,
