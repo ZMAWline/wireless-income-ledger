@@ -49,26 +49,64 @@ const AllLines = () => {
     },
   });
 
-  // Normalize transaction types for robust detection
-  const normalizeType = (t: { activity_type?: string; note?: string }) => {
+  // Robust helpers: numeric parsing and transaction classification
+  const toNum = (v: any) => {
+    const n = parseFloat(String(v ?? 0).replace(/[$,\s]/g, ''));
+    return isNaN(n) ? 0 : n;
+  };
+
+  type Tx = { activity_type?: string; note?: string; cycle?: string; amount?: any };
+
+  const classifyTransaction = (t: Tx) => {
     const raw = (t.activity_type || '').trim().toUpperCase();
     const note = (t.note || '').toLowerCase();
-    if (raw === 'ACT' || raw.includes('ACTIVATION') || note.includes('activation') || note.includes('upfront')) return 'ACT';
-    if (raw === 'DEACT' || raw.includes('CHARGEBACK') || raw.includes('CLAWBACK') || note.includes('chargeback') || note.includes('clawback')) return 'DEACT';
-    if (raw === 'RESIDUAL' || raw.includes('RESID') || raw.includes('SPIF') || raw.includes('SPIFF') || note.includes('spif') || note.includes('residual')) return 'RESIDUAL';
-    return 'RESIDUAL';
+    const cycle = (t.cycle || '').toLowerCase();
+    const amount = toNum(t.amount);
+
+    const hintUpfront =
+      raw === 'ACT' ||
+      raw.includes('ACTIVATION') ||
+      note.includes('activation') ||
+      note.includes('upfront') ||
+      note.includes('up front') ||
+      cycle.includes('upfront') ||
+      cycle.includes('up front');
+
+    const hintDeact =
+      raw === 'DEACT' ||
+      raw.includes('CHARGEBACK') ||
+      raw.includes('CLAWBACK') ||
+      note.includes('chargeback') ||
+      note.includes('clawback');
+
+    // Treat any negative amount as a chargeback/adjustment regardless of type
+    const isChargeback = amount < 0 || hintDeact;
+    const isUpfront = hintUpfront && amount > 0 && !isChargeback;
+    // Monthly/residual are positive non-upfront, non-chargeback amounts
+    const isMonthly = !hintUpfront && amount > 0 && !isChargeback;
+
+    return { amount, isUpfront, isMonthly, isChargeback };
   };
 
   // Process lines to determine payment status
   const processedLines = lines?.map(line => {
-    const hasUpfront = line.transactions.some((t: any) => normalizeType(t) === 'ACT');
-    const hasMonthlyCommission = line.transactions.some((t: any) => normalizeType(t) === 'RESIDUAL');
-    const totalEarnings = line.transactions
-      .filter((t: any) => normalizeType(t) !== 'DEACT')
-      .reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0);
-    const chargebacks = line.transactions
-      .filter((t: any) => normalizeType(t) === 'DEACT')
-      .reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0);
+    const classified = (line.transactions as any[]).map((t) => classifyTransaction(t));
+
+    const upfrontTotal = classified
+      .filter((c) => c.isUpfront)
+      .reduce((s, c) => s + c.amount, 0);
+
+    const monthlyTotal = classified
+      .filter((c) => c.isMonthly)
+      .reduce((s, c) => s + c.amount, 0);
+
+    const chargebacks = classified
+      .filter((c) => c.isChargeback)
+      .reduce((s, c) => s + c.amount, 0);
+
+    const totalEarnings = upfrontTotal + monthlyTotal; // exclude chargebacks from earnings
+    const hasUpfront = upfrontTotal > 0;
+    const hasMonthlyCommission = monthlyTotal > 0;
 
     return {
       ...line,
@@ -76,8 +114,12 @@ const AllLines = () => {
       hasMonthlyCommission,
       totalEarnings,
       chargebacks,
-      paymentStatus: hasUpfront && hasMonthlyCommission ? 'complete' : 
-                    !hasUpfront && !hasMonthlyCommission ? 'none' : 'partial'
+      paymentStatus:
+        hasUpfront && hasMonthlyCommission
+          ? 'complete'
+          : !hasUpfront && !hasMonthlyCommission
+          ? 'none'
+          : 'partial',
     };
   }) || [];
 
