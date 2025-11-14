@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Phone, User, Calendar, Package } from 'lucide-react';
 import { format } from 'date-fns';
+import { toNum, computeLineTotals } from '@/lib/transactions';
 
 const LineDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -97,7 +98,8 @@ const LineDetail = () => {
     }
   };
 
-  const totalCommissions = transactions?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+  const totals = computeLineTotals(transactions || []);
+  const totalCommissions = totals.netTotal;
 
   return (
     <div className="space-y-6">

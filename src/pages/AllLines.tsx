@@ -12,6 +12,7 @@ import { Search, Eye, Download, AlertTriangle, DollarSign } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import PaymentStatusIndicator from '@/components/PaymentStatusIndicator';
+import { toNum, computeLineTotals } from '@/lib/transactions';
 
 const AllLines = () => {
   const [search, setSearch] = useState('');
@@ -71,79 +72,18 @@ const AllLines = () => {
     },
   });
 
-  // Robust helpers: numeric parsing and transaction classification
-  const toNum = (v: any) => {
-    const n = parseFloat(String(v ?? 0).replace(/[$,\s]/g, ''));
-    return isNaN(n) ? 0 : n;
-  };
-
+  // Process lines with payment status using shared helper
   type Tx = { activity_type?: string; note?: string; cycle?: string; amount?: any };
 
-  const classifyTransaction = (t: Tx) => {
-    const raw = (t.activity_type || '').trim().toUpperCase();
-    const note = (t.note || '').toLowerCase();
-    const cycle = (t.cycle || '').toLowerCase();
-    const amount = toNum(t.amount);
-
-    const hintUpfront =
-      raw === 'ACT' ||
-      raw.includes('ACTIVATION') ||
-      note.includes('activation') ||
-      note.includes('upfront') ||
-      note.includes('up front') ||
-      cycle.includes('upfront') ||
-      cycle.includes('up front');
-
-    const hintDeact =
-      raw === 'DEACT' ||
-      raw.includes('CHARGEBACK') ||
-      raw.includes('CLAWBACK') ||
-      note.includes('chargeback') ||
-      note.includes('clawback');
-
-    // Treat any negative amount as a chargeback/adjustment regardless of type
-    const isChargeback = amount < 0 || hintDeact;
-    const isUpfront = hintUpfront && amount > 0 && !isChargeback;
-    // Monthly/residual are positive non-upfront, non-chargeback amounts
-    const isMonthly = !hintUpfront && amount > 0 && !isChargeback;
-
-    return { amount, isUpfront, isMonthly, isChargeback };
-  };
-
-  // Process lines to determine payment status
-  const processedLines = lines?.map(line => {
-    const classified = (line.transactions as any[]).map((t) => classifyTransaction(t));
-
-    const upfrontTotal = classified
-      .filter((c) => c.isUpfront)
-      .reduce((s, c) => s + c.amount, 0);
-
-    const monthlyTotal = classified
-      .filter((c) => c.isMonthly)
-      .reduce((s, c) => s + c.amount, 0);
-
-    const chargebacks = classified
-      .filter((c) => c.isChargeback)
-      .reduce((s, c) => s + c.amount, 0);
-
-    const totalEarnings = upfrontTotal + monthlyTotal; // exclude chargebacks from earnings
-    const hasUpfront = upfrontTotal > 0;
-    const hasMonthlyCommission = monthlyTotal > 0;
+  const processedLines = (lines || []).map((line) => {
+    const txs = (line.transactions as Tx[]) || [];
+    const totals = computeLineTotals(txs);
 
     return {
       ...line,
-      hasUpfront,
-      hasMonthlyCommission,
-      totalEarnings,
-      chargebacks,
-      paymentStatus:
-        hasUpfront && hasMonthlyCommission
-          ? 'complete'
-          : !hasUpfront && !hasMonthlyCommission
-          ? 'none'
-          : 'partial',
+      ...totals,
     };
-  }) || [];
+  });
 
   const filteredLines = processedLines.filter(line => {
     if (activeTab === 'missing-upfront') return !line.hasUpfront;
@@ -229,7 +169,7 @@ const AllLines = () => {
           line.updated_at ? format(new Date(line.updated_at), 'yyyy-MM-dd HH:mm:ss') : '',
           line.hasUpfront ? 'Yes' : 'No',
           line.hasMonthlyCommission ? 'Yes' : 'No',
-          line.totalEarnings.toFixed(2),
+          line.netTotal.toFixed(2),
           Math.abs(line.chargebacks).toFixed(2)
         ];
 
@@ -384,7 +324,7 @@ const AllLines = () => {
                         </TableCell>
                         <TableCell>
                           <span className="font-medium text-green-600">
-                            ${line.totalEarnings.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            ${line.netTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                           </span>
                         </TableCell>
                         <TableCell>
