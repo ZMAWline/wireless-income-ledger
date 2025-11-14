@@ -38,12 +38,34 @@ const AllLines = () => {
         search ? l.mdn.toLowerCase().includes(search.toLowerCase()) : true
       );
 
-      const withTransactions = filteredLines.map((line) => ({
-        ...line,
-        transactions: (txData || []).filter((t) => 
-          t.line_id === line.id || t.mdn === line.mdn
-        ),
-      }));
+      // Normalize MDN to digits-only for reliable matching across datasets
+      const normalizeMdn = (s: string | null | undefined) => String(s ?? '').replace(/\D/g, '');
+
+      // Group all transactions by normalized MDN for fast lookup
+      const txByMdn: Record<string, any[]> = {};
+      (txData || []).forEach((t) => {
+        const key = normalizeMdn(t.mdn);
+        if (!key) return;
+        (txByMdn[key] ||= []).push(t);
+      });
+
+      const withTransactions = filteredLines.map((line) => {
+        const key = normalizeMdn(line.mdn);
+        const mdnMatches = txByMdn[key] || [];
+        const lineIdMatches = (txData || []).filter((t) => t.line_id === line.id);
+        const combined = [...mdnMatches, ...lineIdMatches];
+
+        // De-duplicate by transaction id
+        const byId: Record<string, any> = {};
+        combined.forEach((t) => {
+          if (t && t.id) byId[t.id] = t;
+        });
+
+        return {
+          ...line,
+          transactions: Object.values(byId),
+        };
+      });
 
       return withTransactions as any[];
     },
@@ -192,7 +214,7 @@ const AllLines = () => {
               const transactionMonth = format(new Date(t.created_at), 'yyyy-MM');
               return transactionMonth === month;
             })
-            .reduce((sum, t) => sum + Number(t.amount), 0);
+            .reduce((sum, t) => sum + toNum(t.amount), 0);
           
           return monthTotal.toFixed(2);
         });

@@ -26,14 +26,22 @@ const LineDetail = () => {
   });
 
   const { data: transactions, isLoading: transactionsLoading } = useQuery({
-    queryKey: ['transactions', id],
+    queryKey: ['transactions', id, line?.mdn],
+    enabled: !!id,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const mdn = line?.mdn;
+      let query = supabase
         .from('transactions')
         .select('*')
-        .eq('line_id', id)
         .order('created_at', { ascending: false });
 
+      if (mdn) {
+        query = query.or(`line_id.eq.${id},mdn.eq.${mdn}`);
+      } else {
+        query = query.eq('line_id', id as string);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
