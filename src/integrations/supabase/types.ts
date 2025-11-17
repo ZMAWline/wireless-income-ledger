@@ -62,6 +62,7 @@ export type Database = {
           mdn: string
           note: string | null
           provider: string | null
+          transaction_date: string | null
           user_id: string
         }
         Insert: {
@@ -75,6 +76,7 @@ export type Database = {
           mdn: string
           note?: string | null
           provider?: string | null
+          transaction_date?: string | null
           user_id: string
         }
         Update: {
@@ -88,6 +90,7 @@ export type Database = {
           mdn?: string
           note?: string | null
           provider?: string | null
+          transaction_date?: string | null
           user_id?: string
         }
         Relationships: [

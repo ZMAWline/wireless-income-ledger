@@ -11,7 +11,7 @@ const RecentActivity = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('transactions')
-        .select('id, amount, activity_type, created_at, mdn, customer')
+        .select('id, amount, activity_type, created_at, transaction_date, mdn, customer')
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -81,7 +81,7 @@ const RecentActivity = () => {
               {getActivityBadge(transaction.activity_type)}
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              {(transaction.customer || 'Unknown')} • {format(new Date(transaction.created_at), 'MMM dd, yyyy')}
+              {(transaction.customer || 'Unknown')} • {format(new Date(transaction.transaction_date || transaction.created_at), 'MMM dd, yyyy')}
             </p>
           </div>
           <div className="text-right">

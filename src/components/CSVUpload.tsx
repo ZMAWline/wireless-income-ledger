@@ -66,6 +66,24 @@ const CSVUpload = () => {
     return parseFloat(value.replace(/[$,]/g, '')) || 0;
   };
 
+  const parseCycleDate = (cycle: string): string | null => {
+    if (!cycle) return null;
+    
+    // Try MM/DD/YYYY format
+    const mmddyyyyMatch = cycle.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (mmddyyyyMatch) {
+      const [, month, day, year] = mmddyyyyMatch;
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    
+    // Try YYYY-MM-DD format
+    if (/^\d{4}-\d{2}-\d{2}$/.test(cycle)) {
+      return cycle;
+    }
+    
+    return null;
+  };
+
   const processCSVData = async (data: CSVRow[]) => {
     const processedCount = { created: 0, updated: 0, transactions: 0 };
 
@@ -129,6 +147,7 @@ const CSVUpload = () => {
         const activityType = determineActivityType(note, provider);
 
         // Add transaction with correct schema and RLS user_id
+        const transactionDate = parseCycleDate(cycle);
         const { error: transactionError } = await supabase
           .from('transactions')
           .insert({
@@ -141,6 +160,7 @@ const CSVUpload = () => {
             note: note || null,
             activity_type: activityType,
             amount: amount,
+            transaction_date: transactionDate,
           });
 
         if (transactionError) {
