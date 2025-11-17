@@ -44,7 +44,12 @@ const LineDetail = () => {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+      // Sort by transaction_date (or created_at if transaction_date is null)
+      return (data || []).sort((a, b) => {
+        const dateA = a.transaction_date || a.created_at;
+        const dateB = b.transaction_date || b.created_at;
+        return new Date(dateB).getTime() - new Date(dateA).getTime();
+      });
     },
   });
 
@@ -188,7 +193,7 @@ const LineDetail = () => {
                       <div>
                         <p className="font-medium">{transaction.note || '—'}</p>
                         <p className="text-sm text-gray-500">
-                          {format(new Date(transaction.created_at), 'MMM dd, yyyy')}
+                          {format(new Date(transaction.transaction_date || transaction.created_at), 'MMM dd, yyyy')}
                         </p>
                       </div>
                     </div>
