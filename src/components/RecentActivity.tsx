@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
+import { resolveTransactionDate } from '@/lib/transactions';
 
 const RecentActivity = () => {
   const { data: recentTransactions, isLoading } = useQuery({
@@ -11,7 +12,8 @@ const RecentActivity = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('transactions')
-        .select('id, amount, activity_type, created_at, transaction_date, mdn, customer')
+        .select('id, amount, activity_type, created_at, transaction_date, cycle, mdn, customer')
+        .order('transaction_date', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -81,7 +83,7 @@ const RecentActivity = () => {
               {getActivityBadge(transaction.activity_type)}
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              {(transaction.customer || 'Unknown')} • {format(new Date(transaction.transaction_date || transaction.created_at), 'MMM dd, yyyy')}
+              {(transaction.customer || 'Unknown')} • {format(resolveTransactionDate(transaction), 'MMM dd, yyyy')}
             </p>
           </div>
           <div className="text-right">
