@@ -29,8 +29,12 @@ export type LineTotals = {
  * Parse numeric values from strings, removing currency symbols and spaces
  */
 export const toNum = (v: any): number => {
-  const n = parseFloat(String(v ?? 0).replace(/[$,\s]/g, ''));
-  return isNaN(n) ? 0 : n;
+  const s = String(v ?? 0).trim();
+  const isParenNeg = /^\(.*\)$/.test(s);
+  const cleaned = s.replace(/[$,\s]/g, '').replace(/[()]/g, '');
+  const n = parseFloat(cleaned);
+  if (isNaN(n)) return 0;
+  return isParenNeg ? -Math.abs(n) : n;
 };
 
 /**
@@ -52,15 +56,20 @@ export const normalizeType = (t: TransactionType): 'ACT' | 'RESIDUAL' | 'DEACT' 
     return 'DEACT';
   }
 
-  // Detect ACT (upfronts / activations) using whole-word matching
+  // Detect ACT (upfronts / activations) using whole-word matching and common synonyms
   if (
     /\bACT\b/.test(raw) ||
     raw.includes('ACTIVATION') ||
+    raw.includes('UPFRONT') ||
+    raw.includes('UP FRONT') ||
+    raw.includes('UP-FRONT') ||
     note.includes('activation') ||
     note.includes('upfront') ||
     note.includes('up front') ||
+    note.includes('up-front') ||
     cycle.includes('upfront') ||
-    cycle.includes('up front')
+    cycle.includes('up front') ||
+    cycle.includes('up-front')
   ) {
     return 'ACT';
   }
