@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Phone, User, Calendar, Package } from 'lucide-react';
 import { format } from 'date-fns';
-import { toNum, computeLineTotals } from '@/lib/transactions';
+import { toNum, computeLineTotals, resolveTransactionDate } from '@/lib/transactions';
 
 const LineDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -34,6 +34,7 @@ const LineDetail = () => {
       let query = supabase
         .from('transactions')
         .select('*')
+        .order('transaction_date', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false });
 
       if (mdn) {
@@ -46,9 +47,9 @@ const LineDetail = () => {
       if (error) throw error;
       // Sort by transaction_date (or created_at if transaction_date is null)
       return (data || []).sort((a, b) => {
-        const dateA = a.transaction_date || a.created_at;
-        const dateB = b.transaction_date || b.created_at;
-        return new Date(dateB).getTime() - new Date(dateA).getTime();
+        const dateA = resolveTransactionDate(a);
+        const dateB = resolveTransactionDate(b);
+        return dateB.getTime() - dateA.getTime();
       });
     },
   });
@@ -193,7 +194,7 @@ const LineDetail = () => {
                       <div>
                         <p className="font-medium">{transaction.note || '—'}</p>
                         <p className="text-sm text-gray-500">
-                          {format(new Date(transaction.transaction_date || transaction.created_at), 'MMM dd, yyyy')}
+                          {format(resolveTransactionDate(transaction), 'MMM dd, yyyy')}
                         </p>
                       </div>
                     </div>

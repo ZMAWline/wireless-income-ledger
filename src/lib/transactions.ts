@@ -38,6 +38,79 @@ export const toNum = (v: any): number => {
 };
 
 /**
+ * Parse a cycle string to an ISO date (YYYY-MM-DD). If only month/year exist, use day=01
+ */
+export const parseCycleToDate = (cycle?: string | null): string | null => {
+  if (!cycle) return null;
+  const s = String(cycle).trim();
+
+  // MM/DD/YYYY
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) {
+    const [, mm, dd, yyyy] = m;
+    return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+  }
+
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  // MM/YYYY
+  m = s.match(/^(\d{1,2})\/(\d{4})$/);
+  if (m) {
+    const [, mm, yyyy] = m;
+    return `${yyyy}-${mm.padStart(2, '0')}-01`;
+  }
+
+  // YYYY-MM
+  m = s.match(/^(\d{4})-(\d{1,2})$/);
+  if (m) {
+    const [, yyyy, mm] = m;
+    return `${yyyy}-${String(mm).padStart(2, '0')}-01`;
+  }
+
+  // Mon YYYY or Month YYYY (e.g., Nov 2025, November 2025)
+  m = s.match(/^([A-Za-z]{3,9})[\s-](\d{4})$/);
+  if (m) {
+    const [, mon, yyyy] = m;
+    const monthNames: Record<string, number> = {
+      jan: 1, january: 1,
+      feb: 2, february: 2,
+      mar: 3, march: 3,
+      apr: 4, april: 4,
+      may: 5,
+      jun: 6, june: 6,
+      jul: 7, july: 7,
+      aug: 8, august: 8,
+      sep: 9, sept: 9, september: 9,
+      oct: 10, october: 10,
+      nov: 11, november: 11,
+      dec: 12, december: 12,
+    };
+    const mm = monthNames[mon.toLowerCase()];
+    if (mm) return `${yyyy}-${String(mm).padStart(2, '0')}-01`;
+  }
+
+  // If all else fails, try Date.parse
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  return null;
+};
+
+/**
+ * Resolve a transaction's intended date (transaction_date -> parsed cycle -> created_at)
+ */
+export const resolveTransactionDate = (t: { transaction_date?: string | null; created_at?: string; cycle?: string | null; }): Date => {
+  const dStr = t.transaction_date || parseCycleToDate(t.cycle) || t.created_at || new Date().toISOString();
+  return new Date(dStr as string);
+};
+
+/**
  * Normalize transaction types for robust detection
  */
 export const normalizeType = (t: TransactionType): 'ACT' | 'RESIDUAL' | 'DEACT' => {
