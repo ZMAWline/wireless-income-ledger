@@ -62,6 +62,7 @@ export type Database = {
           mdn: string
           note: string | null
           provider: string | null
+          status: string | null
           transaction_date: string | null
           user_id: string
         }
@@ -76,6 +77,7 @@ export type Database = {
           mdn: string
           note?: string | null
           provider?: string | null
+          status?: string | null
           transaction_date?: string | null
           user_id: string
         }
@@ -90,6 +92,7 @@ export type Database = {
           mdn?: string
           note?: string | null
           provider?: string | null
+          status?: string | null
           transaction_date?: string | null
           user_id?: string
         }

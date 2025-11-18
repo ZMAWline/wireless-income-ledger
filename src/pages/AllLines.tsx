@@ -31,7 +31,8 @@ const AllLines = () => {
       const { data: txData, error: txError } = await supabase
         .from('transactions')
         .select('id, line_id, mdn, activity_type, amount, created_at, note, provider, cycle')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(0, 9999);
 
       if (txError) throw txError;
 
