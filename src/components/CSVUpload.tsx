@@ -85,7 +85,7 @@ const CSVUpload = () => {
   };
 
   const processCSVData = async (data: CSVRow[]) => {
-    const processedCount = { created: 0, updated: 0, transactions: 0 };
+    const processedCount = { created: 0, updated: 0, transactions: 0, skipped: 0 };
 
     const { data: authData } = await supabase.auth.getUser();
     const user = authData?.user;
@@ -145,6 +145,23 @@ const CSVUpload = () => {
 
         // Determine activity type based on NOTE and PROVIDER
         const activityType = determineActivityType(note, provider);
+
+        // Check for duplicate transaction
+        const { data: existingTransaction } = await supabase
+          .from('transactions')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('mdn', phoneNumber)
+          .eq('cycle', cycle || '')
+          .eq('amount', amount)
+          .eq('activity_type', activityType)
+          .maybeSingle();
+
+        if (existingTransaction) {
+          console.log('Skipping duplicate transaction:', { phoneNumber, cycle, amount, activityType });
+          processedCount.skipped++;
+          continue;
+        }
 
         // Add transaction with correct schema and RLS user_id
         const transactionDate = parseCycleDate(cycle);
@@ -213,7 +230,7 @@ const CSVUpload = () => {
       setUploadStatus('success');
       toast({
         title: 'Upload successful!',
-        description: `Processed ${result.transactions} transactions for ${result.created} new and ${result.updated} existing lines.`,
+        description: `Processed ${result.transactions} transactions for ${result.created} new and ${result.updated} existing lines.${result.skipped > 0 ? ` Skipped ${result.skipped} duplicates.` : ''}`,
       });
 
     } catch (error) {
