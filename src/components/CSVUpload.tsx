@@ -109,13 +109,24 @@ const CSVUpload = () => {
         const amount = cleanCurrency(row.COMP_PAID || '0');
 
         // Check if line exists for this user
-        let { data: existingLine } = await supabase
+        // First try exact MDN match
+        let { data: existingLines } = await supabase
           .from('lines')
-          .select('id')
-          .eq('mdn', phoneNumber)
-          .maybeSingle();
+          .select('id, provider, customer')
+          .eq('mdn', phoneNumber);
 
         let lineId: string;
+        let existingLine = null;
+
+        // If multiple lines with same MDN, disambiguate using provider+customer
+        if (existingLines && existingLines.length > 1) {
+          existingLine = existingLines.find(
+            (line) =>
+              line.provider === provider && line.customer === customer
+          ) || existingLines[0]; // Fallback to first if no exact match
+        } else if (existingLines && existingLines.length === 1) {
+          existingLine = existingLines[0];
+        }
 
         if (!existingLine) {
           // Create new line with correct schema and RLS user_id
