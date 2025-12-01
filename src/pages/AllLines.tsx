@@ -43,23 +43,18 @@ const AllLines = () => {
       // Normalize MDN to digits-only for reliable matching across datasets
       const normalizeMdn = (s: string | null | undefined) => String(s ?? '').replace(/\D/g, '');
 
-      // Group all transactions by normalized MDN for fast lookup
-      const txByMdn: Record<string, any[]> = {};
-      (txData || []).forEach((t) => {
-        const key = normalizeMdn(t.mdn);
-        if (!key) return;
-        (txByMdn[key] ||= []).push(t);
-      });
-
+      // For each line, attach all unique transactions that either share line_id or normalized MDN
       const withTransactions = filteredLines.map((line) => {
-        const key = normalizeMdn(line.mdn);
-        const mdnMatches = txByMdn[key] || [];
-        const lineIdMatches = (txData || []).filter((t) => t.line_id === line.id);
-        const combined = [...mdnMatches, ...lineIdMatches];
+        const lineKey = normalizeMdn(line.mdn);
+
+        const lineTransactions = (txData || []).filter((t) => {
+          const txKey = normalizeMdn(t.mdn);
+          return t.line_id === line.id || txKey === lineKey;
+        });
 
         // De-duplicate by transaction id
         const byId: Record<string, any> = {};
-        combined.forEach((t) => {
+        lineTransactions.forEach((t) => {
           if (t && t.id) byId[t.id] = t;
         });
 
