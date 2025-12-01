@@ -23,48 +23,35 @@ const AllLines = () => {
     queryFn: async () => {
       const { data: linesData, error: linesError } = await supabase
         .from('lines')
-        .select('id, mdn, customer, provider, status, created_at, updated_at')
+        .select(`
+          id,
+          mdn,
+          customer,
+          provider,
+          status,
+          created_at,
+          updated_at,
+          transactions (
+            id,
+            line_id,
+            mdn,
+            activity_type,
+            amount,
+            created_at,
+            note,
+            provider,
+            cycle
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (linesError) throw linesError;
-
-      const { data: txData, error: txError } = await supabase
-        .from('transactions')
-        .select('id, line_id, mdn, activity_type, amount, created_at, note, provider, cycle')
-        .order('created_at', { ascending: false })
-        .range(0, 9999);
-
-      if (txError) throw txError;
 
       const filteredLines = (linesData || []).filter((l) =>
         search ? l.mdn.toLowerCase().includes(search.toLowerCase()) : true
       );
 
-      // Normalize MDN to digits-only for reliable matching across datasets
-      const normalizeMdn = (s: string | null | undefined) => String(s ?? '').replace(/\D/g, '');
-
-      // For each line, attach all unique transactions that either share line_id or normalized MDN
-      const withTransactions = filteredLines.map((line) => {
-        const lineKey = normalizeMdn(line.mdn);
-
-        const lineTransactions = (txData || []).filter((t) => {
-          const txKey = normalizeMdn(t.mdn);
-          return t.line_id === line.id || txKey === lineKey;
-        });
-
-        // De-duplicate by transaction id
-        const byId: Record<string, any> = {};
-        lineTransactions.forEach((t) => {
-          if (t && t.id) byId[t.id] = t;
-        });
-
-        return {
-          ...line,
-          transactions: Object.values(byId),
-        };
-      });
-
-      return withTransactions as any[];
+      return filteredLines as any[];
     },
   });
 
@@ -74,6 +61,16 @@ const AllLines = () => {
   const processedLines = (lines || []).map((line) => {
     const txs = (line.transactions as Tx[]) || [];
     const totals = computeLineTotals(txs);
+
+    // Temporary debug logging for specific MDNs to verify classification
+    if (['6402451376', '9296835627'].includes(line.mdn)) {
+      console.log('LINE_DEBUG', {
+        mdn: line.mdn,
+        txCount: txs.length,
+        totals,
+        sampleTx: txs.slice(0, 5),
+      });
+    }
 
     return {
       ...line,
