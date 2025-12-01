@@ -37,29 +37,26 @@ const CSVUpload = () => {
     return digits.substring(0, 10);
   };
 
-  const determineActivityType = (note: string, provider: string): 'ACT' | 'RESIDUAL' | 'DEACT' => {
+  const determineActivityType = (note: string, provider: string): string => {
+    // Store a generic type that will be classified at runtime
+    // The runtime normalizeType() will handle the actual classification
     const noteLower = note.toLowerCase();
     
-    // Chargebacks/Clawbacks
-    if (noteLower.includes('chargeback') || noteLower.includes('clawback')) {
+    // Only detect obvious cases, otherwise store 'TRANSACTION' for runtime classification
+    if (noteLower.includes('chargeback') || noteLower.includes('clawback') || noteLower.includes('deact')) {
       return 'DEACT';
     }
     
-    // Upfront payments
-    if ((provider === 'AT&T' && noteLower.includes('upfront')) ||
-        (provider === 'Verizon' && noteLower.includes('activation'))) {
+    if (noteLower.includes('activation') || noteLower.includes('upfront') || noteLower.includes('act')) {
       return 'ACT';
     }
     
-    // Residuals/SPIFs
-    if (noteLower.includes('spif') || 
-        noteLower.includes('residual') || 
-        noteLower.includes('account maintenance fee')) {
+    if (noteLower.includes('spif') || noteLower.includes('residual')) {
       return 'RESIDUAL';
     }
     
-    // Default to ACT if unclear
-    return 'ACT';
+    // Default to generic type - will be classified at runtime
+    return 'TRANSACTION';
   };
 
   const cleanCurrency = (value: string): number => {

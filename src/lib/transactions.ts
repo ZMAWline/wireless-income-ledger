@@ -111,25 +111,29 @@ export const resolveTransactionDate = (t: { transaction_date?: string | null; cr
 };
 
 /**
- * Normalize transaction types for robust detection
+ * Normalize transaction types for robust detection at runtime
+ * This is the single source of truth for transaction classification
  */
 export const normalizeType = (t: TransactionType): 'ACT' | 'RESIDUAL' | 'DEACT' => {
   const raw = (t.activity_type || '').trim().toUpperCase();
   const note = (t.note || '').toLowerCase();
   const cycle = (t.cycle || '').toLowerCase();
+  const amount = toNum(t.amount);
 
-  // Detect DEACT/chargebacks first to avoid matching 'ACT' inside 'DEACT'
+  // PRIORITY 1: Detect DEACT/chargebacks first (highest priority)
   if (
     /\bDEACT\b/.test(raw) ||
     raw.includes('CHARGEBACK') ||
     raw.includes('CLAWBACK') ||
     note.includes('chargeback') ||
-    note.includes('clawback')
+    note.includes('clawback') ||
+    note.includes('deact') ||
+    amount < 0
   ) {
     return 'DEACT';
   }
 
-  // Detect ACT (upfronts / activations) using whole-word matching and common synonyms
+  // PRIORITY 2: Detect ACT (upfronts/activations) - check note content thoroughly
   if (
     /\bACT\b/.test(raw) ||
     raw.includes('ACTIVATION') ||
@@ -140,6 +144,8 @@ export const normalizeType = (t: TransactionType): 'ACT' | 'RESIDUAL' | 'DEACT' 
     note.includes('upfront') ||
     note.includes('up front') ||
     note.includes('up-front') ||
+    note.includes('component:upfront') ||
+    note.includes('product type:gross adds') ||
     cycle.includes('upfront') ||
     cycle.includes('up front') ||
     cycle.includes('up-front')
@@ -147,19 +153,22 @@ export const normalizeType = (t: TransactionType): 'ACT' | 'RESIDUAL' | 'DEACT' 
     return 'ACT';
   }
 
-  // Detect residuals / spifs
+  // PRIORITY 3: Detect residuals/spifs (recurring commissions)
   if (
     /\bRESIDUAL\b/.test(raw) ||
     raw.includes('RESID') ||
     raw.includes('SPIF') ||
     raw.includes('SPIFF') ||
     note.includes('spif') ||
-    note.includes('residual')
+    note.includes('residual') ||
+    note.includes('recurring') ||
+    note.includes('monthly')
   ) {
     return 'RESIDUAL';
   }
 
-  // Default to RESIDUAL when unsure (most recurring payments are residuals)
+  // DEFAULT: If we can't determine the type, treat as RESIDUAL
+  // (most transactions without clear indicators are recurring payments)
   return 'RESIDUAL';
 };
 
