@@ -118,6 +118,17 @@ export const normalizeType = (t: TransactionType): 'ACT' | 'RESIDUAL' | 'DEACT' 
   const note = (t.note || '').toLowerCase();
   const cycle = (t.cycle || '').toLowerCase();
 
+  // Debug: log first few transactions to see actual data structure
+  if (Math.random() < 0.01) {
+    console.log('[normalizeType] Sample transaction:', {
+      activity_type: t.activity_type,
+      note: t.note,
+      cycle: t.cycle,
+      raw,
+      notePreview: note.substring(0, 50),
+    });
+  }
+
   // Detect DEACT/chargebacks first to avoid matching 'ACT' inside 'DEACT'
   if (
     /\bDEACT\b/.test(raw) ||
@@ -130,6 +141,7 @@ export const normalizeType = (t: TransactionType): 'ACT' | 'RESIDUAL' | 'DEACT' 
   }
 
   // Detect ACT (upfronts / activations) using whole-word matching and common synonyms
+  // Also check for "Component:Upfront" pattern which appears in transaction notes
   if (
     /\bACT\b/.test(raw) ||
     raw.includes('ACTIVATION') ||
@@ -140,6 +152,7 @@ export const normalizeType = (t: TransactionType): 'ACT' | 'RESIDUAL' | 'DEACT' 
     note.includes('upfront') ||
     note.includes('up front') ||
     note.includes('up-front') ||
+    note.includes('component:upfront') ||
     cycle.includes('upfront') ||
     cycle.includes('up front') ||
     cycle.includes('up-front')
@@ -148,13 +161,15 @@ export const normalizeType = (t: TransactionType): 'ACT' | 'RESIDUAL' | 'DEACT' 
   }
 
   // Detect residuals / spifs
+  // Also check for "Component:Residual" pattern which appears in transaction notes
   if (
     /\bRESIDUAL\b/.test(raw) ||
     raw.includes('RESID') ||
     raw.includes('SPIF') ||
     raw.includes('SPIFF') ||
     note.includes('spif') ||
-    note.includes('residual')
+    note.includes('residual') ||
+    note.includes('component:residual')
   ) {
     return 'RESIDUAL';
   }
@@ -172,12 +187,24 @@ export const classifyTransaction = (t: TransactionType): ClassifiedTransaction =
 
   // Negative amounts or DEACT types are chargebacks
   const isChargeback = amount < 0 || type === 'DEACT';
-  
+
   // ACT with positive amount (not a chargeback) is upfront
   const isUpfront = type === 'ACT' && amount > 0 && !isChargeback;
-  
+
   // RESIDUAL with positive amount (not a chargeback) is monthly commission
   const isMonthly = type === 'RESIDUAL' && amount > 0 && !isChargeback;
+
+  // Debug logging for troubleshooting
+  if (t.note && t.note.toLowerCase && t.note.toLowerCase().includes('upfront')) {
+    console.log('[classifyTransaction] Upfront transaction:', {
+      activity_type: t.activity_type,
+      note: t.note,
+      amount,
+      type,
+      isUpfront,
+      isChargeback,
+    });
+  }
 
   return {
     amount,

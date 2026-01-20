@@ -39,27 +39,30 @@ const CSVUpload = () => {
 
   const determineActivityType = (note: string, provider: string): 'ACT' | 'RESIDUAL' | 'DEACT' => {
     const noteLower = note.toLowerCase();
-    
+    const providerLower = provider.toLowerCase();
+
     // Chargebacks/Clawbacks
     if (noteLower.includes('chargeback') || noteLower.includes('clawback')) {
       return 'DEACT';
     }
-    
-    // Upfront payments
-    if ((provider === 'AT&T' && noteLower.includes('upfront')) ||
-        (provider === 'Verizon' && noteLower.includes('activation'))) {
+
+    // Upfront payments - check for "Component:Upfront" pattern and provider-specific keywords
+    if (noteLower.includes('component:upfront') ||
+        noteLower.includes('upfront') ||
+        (providerLower.includes('verizon') && noteLower.includes('activation'))) {
       return 'ACT';
     }
-    
-    // Residuals/SPIFs
-    if (noteLower.includes('spif') || 
-        noteLower.includes('residual') || 
+
+    // Residuals/SPIFs - check for "Component:Residual" pattern
+    if (noteLower.includes('component:residual') ||
+        noteLower.includes('spif') ||
+        noteLower.includes('residual') ||
         noteLower.includes('account maintenance fee')) {
       return 'RESIDUAL';
     }
-    
-    // Default to ACT if unclear
-    return 'ACT';
+
+    // Default to RESIDUAL for unrecognized patterns (most recurring payments are residuals)
+    return 'RESIDUAL';
   };
 
   const cleanCurrency = (value: string): number => {

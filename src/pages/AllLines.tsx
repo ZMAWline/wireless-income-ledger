@@ -30,11 +30,25 @@ const AllLines = () => {
 
       const { data: txData, error: txError } = await supabase
         .from('transactions')
-        .select('id, line_id, mdn, activity_type, amount, created_at, note, provider, cycle')
-        .order('created_at', { ascending: false })
-        .range(0, 9999);
+        .select('*');
 
       if (txError) throw txError;
+
+      console.log('[AllLines Query] Lines count:', linesData?.length);
+      console.log('[AllLines Query] Transactions count:', txData?.length);
+      console.log('[AllLines Query] Sample line MDNs:', linesData?.slice(0, 3).map(l => l.mdn));
+      console.log('[AllLines Query] Sample tx MDNs:', txData?.slice(0, 3).map(t => t.mdn));
+      console.log('[AllLines Query] Looking for ACT transaction (3476225816):',
+        txData?.find(t => t.mdn === '3476225816' && t.activity_type === 'ACT'));
+      console.log('[AllLines Query] Transactions for 9173120133 (exact):',
+        txData?.filter(t => t.mdn === '9173120133'));
+      console.log('[AllLines Query] All MDNs containing "917312":',
+        [...new Set(txData?.filter(t => t.mdn?.includes('917312')).map(t => t.mdn))]);
+
+      const testLine = linesData?.find(l => l.mdn === '9173120133');
+      if (testLine) {
+        console.log('[AllLines Query] Line 9173120133:', testLine);
+      }
 
       const filteredLines = (linesData || []).filter((l) =>
         search ? l.mdn.toLowerCase().includes(search.toLowerCase()) : true
@@ -56,6 +70,18 @@ const AllLines = () => {
         const mdnMatches = txByMdn[key] || [];
         const lineIdMatches = (txData || []).filter((t) => t.line_id === line.id);
         const combined = [...mdnMatches, ...lineIdMatches];
+
+        // Debug specific problematic line
+        if (line.mdn === '9173120133') {
+          console.log('[Transaction Matching] Line 9173120133:', {
+            lineId: line.id,
+            normalizedKey: key,
+            mdnMatchesCount: mdnMatches.length,
+            lineIdMatchesCount: lineIdMatches.length,
+            lineIdMatches: lineIdMatches,
+            combinedCount: combined.length,
+          });
+        }
 
         // De-duplicate by transaction id
         const byId: Record<string, any> = {};
@@ -79,6 +105,15 @@ const AllLines = () => {
   const processedLines = (lines || []).map((line) => {
     const txs = (line.transactions as Tx[]) || [];
     const totals = computeLineTotals(txs);
+
+    // Debug: log a few lines to see transaction counts
+    if (line.mdn === '3476225816' || line.mdn === '9296437071' || line.mdn === '9173120133') {
+      console.log(`[AllLines] Line ${line.mdn}:`, {
+        transactionCount: txs.length,
+        transactions: txs,
+        totals,
+      });
+    }
 
     return {
       ...line,

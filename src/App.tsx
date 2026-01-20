@@ -6,6 +6,7 @@ import Dashboard from '@/pages/Dashboard';
 import AllLines from '@/pages/AllLines';
 import LineDetail from '@/pages/LineDetail';
 import Auth from '@/pages/Auth';
+import Debug from '@/pages/Debug';
 import Navigation from '@/components/Navigation';
 import AuthGuard from '@/components/AuthGuard';
 
@@ -27,6 +28,7 @@ function App() {
                       <Route path="/" element={<Dashboard />} />
                       <Route path="/lines" element={<AllLines />} />
                       <Route path="/lines/:id" element={<LineDetail />} />
+                      <Route path="/debug" element={<Debug />} />
                     </Routes>
                   </main>
                 </>
