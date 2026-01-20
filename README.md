@@ -1,73 +1,184 @@
-# Welcome to your Lovable project
+# Wireless Income Ledger
 
-## Project info
+A modern web application for tracking and managing wireless commission income. Built with React, TypeScript, and Supabase.
 
-**URL**: https://lovable.dev/projects/edec7216-3164-45cf-8244-b37b5a03f5c2
+## Features
 
-## How can I edit this code?
+- 📊 **Dashboard** - Overview of total commissions, active lines, and recent activity
+- 💰 **Commission Tracking** - Track upfront payments, monthly residuals, and chargebacks
+- 📱 **Line Management** - Manage wireless lines with detailed transaction history
+- 📈 **Payment Status** - Visual indicators for missing upfront or monthly commissions
+- 📄 **CSV Import** - Bulk import commission data from CSV files
+- 🔐 **Secure Authentication** - User authentication powered by Supabase
+- 📊 **Export Reports** - Export data to CSV with monthly breakdowns
 
-There are several ways of editing your application.
+## Tech Stack
 
-**Use Lovable**
+- **Frontend**: React 18 with TypeScript
+- **Build Tool**: Vite
+- **Styling**: Tailwind CSS
+- **UI Components**: shadcn/ui (Radix UI)
+- **Backend**: Supabase (PostgreSQL + Auth)
+- **State Management**: TanStack Query (React Query)
+- **Form Handling**: React Hook Form + Zod
+- **Routing**: React Router v6
+- **CSV Parsing**: PapaParse
+- **Date Handling**: date-fns
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/edec7216-3164-45cf-8244-b37b5a03f5c2) and start prompting.
+## Prerequisites
 
-Changes made via Lovable will be committed automatically to this repo.
+- Node.js 18+ and npm
+- Supabase account and project
 
-**Use your preferred IDE**
+## Getting Started
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### 1. Clone the repository
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+```bash
+git clone https://github.com/ZMAWline/wireless-income-ledger.git
+cd wireless-income-ledger
+```
 
-Follow these steps:
+### 2. Install dependencies
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+```bash
+npm install
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### 3. Set up environment variables
 
-# Step 3: Install the necessary dependencies.
-npm i
+Create a `.env` file in the root directory:
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```env
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+Replace the values with your Supabase project credentials.
+
+### 4. Set up Supabase
+
+You'll need to create the following tables in your Supabase database:
+
+#### `lines` table
+```sql
+create table lines (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references auth.users not null,
+  mdn text not null,
+  customer text,
+  provider text,
+  status text default 'ACTIVE',
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+-- Enable RLS
+alter table lines enable row level security;
+
+-- Create policy
+create policy "Users can only access their own lines"
+  on lines for all
+  using (auth.uid() = user_id);
+```
+
+#### `transactions` table
+```sql
+create table transactions (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references auth.users not null,
+  line_id uuid references lines(id),
+  mdn text not null,
+  activity_type text not null,
+  amount numeric not null,
+  customer text,
+  provider text,
+  cycle text,
+  note text,
+  transaction_date timestamp with time zone,
+  created_at timestamp with time zone default now()
+);
+
+-- Enable RLS
+alter table transactions enable row level security;
+
+-- Create policy
+create policy "Users can only access their own transactions"
+  on transactions for all
+  using (auth.uid() = user_id);
+```
+
+### 5. Start the development server
+
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The app will be available at `http://localhost:8080`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Available Scripts
 
-**Use GitHub Codespaces**
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Project Structure
 
-## What technologies are used for this project?
+```
+wireless-income-ledger/
+├── src/
+│   ├── components/        # Reusable UI components
+│   ├── hooks/            # Custom React hooks
+│   ├── integrations/     # Supabase client configuration
+│   ├── lib/              # Utility functions
+│   ├── pages/            # Page components
+│   └── main.tsx          # Application entry point
+├── public/               # Static assets
+└── supabase/            # Supabase configuration (if using local dev)
+```
 
-This project is built with:
+## Key Features Explained
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### CSV Import
+Upload commission reports in CSV format. The system automatically:
+- Creates or updates line records
+- Imports transactions
+- Prevents duplicate entries
+- Associates transactions with the authenticated user
 
-## How can I deploy this project?
+### Payment Status Tracking
+Visual indicators show which lines are:
+- Missing upfront commissions
+- Missing monthly residuals
+- Have no payments at all
 
-Simply open [Lovable](https://lovable.dev/projects/edec7216-3164-45cf-8244-b37b5a03f5c2) and click on Share -> Publish.
+### Monthly Export
+Export functionality generates CSV reports with:
+- Line details
+- Monthly commission totals
+- Total earnings and chargebacks
+- Customizable date ranges
 
-## Can I connect a custom domain to my Lovable project?
+## Security
 
-Yes, you can!
+- Row Level Security (RLS) enabled on all tables
+- User data isolation - users can only see their own data
+- Secure authentication via Supabase Auth
+- Environment variables for sensitive credentials
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Contributing
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is private and proprietary.
+
+## Support
+
+For issues and questions, please open an issue on GitHub.

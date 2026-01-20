@@ -21,6 +21,9 @@ const AllLines = () => {
   const { data: lines, isLoading } = useQuery({
     queryKey: ['lines', search],
     queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
       const { data: linesData, error: linesError } = await supabase
         .from('lines')
         .select(`
@@ -43,6 +46,7 @@ const AllLines = () => {
             cycle
           )
         `)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (linesError) throw linesError;
@@ -51,7 +55,7 @@ const AllLines = () => {
         search ? l.mdn.toLowerCase().includes(search.toLowerCase()) : true
       );
 
-      return filteredLines as any[];
+      return filteredLines;
     },
   });
 

@@ -10,9 +10,13 @@ const RecentActivity = () => {
   const { data: recentTransactions, isLoading } = useQuery({
     queryKey: ['recent-activity'],
     queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
       const { data, error } = await supabase
         .from('transactions')
         .select('id, amount, activity_type, created_at, transaction_date, cycle, mdn, customer')
+        .eq('user_id', user.id)
         .order('transaction_date', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false })
         .limit(10);

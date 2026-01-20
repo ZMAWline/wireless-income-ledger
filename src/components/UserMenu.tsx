@@ -12,6 +12,10 @@ import {
 import { User, LogOut } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
+interface UserMetadata {
+  full_name?: string;
+}
+
 const UserMenu = () => {
   const [loading, setLoading] = useState(false);
 
@@ -40,13 +44,13 @@ const UserMenu = () => {
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm">
           <User className="h-4 w-4 mr-2" />
-          {(profile?.user_metadata as any)?.full_name || profile?.email || 'User'}
+          {(profile?.user_metadata as UserMetadata)?.full_name || profile?.email || 'User'}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem disabled>
           <div className="flex flex-col">
-            <span className="font-medium">{(profile?.user_metadata as any)?.full_name || 'User'}</span>
+            <span className="font-medium">{(profile?.user_metadata as UserMetadata)?.full_name || 'User'}</span>
             <span className="text-sm text-gray-500">{profile?.email}</span>
           </div>
         </DropdownMenuItem>

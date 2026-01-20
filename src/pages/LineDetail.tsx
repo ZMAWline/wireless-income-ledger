@@ -15,10 +15,14 @@ const LineDetail = () => {
   const { data: line, isLoading: lineLoading } = useQuery({
     queryKey: ['line', id],
     queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
       const { data, error } = await supabase
         .from('lines')
         .select('*')
         .eq('id', id)
+        .eq('user_id', user.id)
         .single();
 
       if (error) throw error;
@@ -28,12 +32,16 @@ const LineDetail = () => {
 
   const { data: transactions, isLoading: transactionsLoading } = useQuery({
     queryKey: ['transactions', id, line?.mdn],
-    enabled: !!id,
+    enabled: !!id && !!line,
     queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
       const mdn = line?.mdn;
       let query = supabase
         .from('transactions')
         .select('*')
+        .eq('user_id', user.id)
         .order('transaction_date', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false });
 

@@ -15,16 +15,20 @@ const Dashboard = () => {
       if (!user) throw new Error('Not authenticated');
 
       // Get transaction stats for the authenticated user
-      const { data: transactions } = await supabase
+      const { data: transactions, error: transactionsError } = await supabase
         .from('transactions')
         .select('activity_type, amount')
         .eq('user_id', user.id);
 
+      if (transactionsError) throw transactionsError;
+
       // Get line count for the authenticated user
-      const { data: lines } = await supabase
+      const { data: lines, error: linesError } = await supabase
         .from('lines')
         .select('id, status')
         .eq('user_id', user.id);
+
+      if (linesError) throw linesError;
 
       const totalUpfront = transactions?.filter(t => t.activity_type === 'ACT')
         .reduce((sum, t) => sum + Number(t.amount), 0) || 0;
