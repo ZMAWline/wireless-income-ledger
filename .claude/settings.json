@@ -1,0 +1,85 @@
+{
+  "enabledMcpjsonServers": [
+    "factory-report"
+  ],
+  "permissions": {
+    "allow": [
+      "mcp__factory-report__report_stage"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"/home/zmaw/code/marshal-factory/hooks/report.ts\"",
+            "async": true,
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"/home/zmaw/code/marshal-factory/hooks/report.ts\"",
+            "async": true,
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"/home/zmaw/code/marshal-factory/hooks/report.ts\"",
+            "async": true,
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"/home/zmaw/code/marshal-factory/hooks/report.ts\"",
+            "async": true,
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"/home/zmaw/code/marshal-factory/hooks/report.ts\"",
+            "async": true,
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"/home/zmaw/code/marshal-factory/hooks/report.ts\"",
+            "async": true,
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}
